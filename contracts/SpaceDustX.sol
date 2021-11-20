@@ -620,7 +620,7 @@ interface IUniswapV2Factory {
     function setFeeToSetter(address) external;
 }
 
-// BrewBoo is MasterChef's left hand and kinda a wizard. He can brew Boo from pretty much anything!
+// SpaceDustX is MasterChief's left hand.
 // This contract handles "serving up" rewards for xBoo holders by trading tokens collected from fees for Boo.
 
 // T1 - T4: OK
