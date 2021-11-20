@@ -621,7 +621,8 @@ interface IUniswapV2Factory {
 }
 
 // SpaceDustX is MasterChief's left hand.
-// This contract handles "serving up" rewards for xBoo holders by trading tokens collected from fees for Boo.
+// Sends reward tokens to the asteroid belt
+// Other tokens are swapped to plex and sent to the belt
 
 // T1 - T4: OK
 contract SpaceDustX is Ownable {
@@ -630,9 +631,12 @@ contract SpaceDustX is Ownable {
 
     IUniswapV2Factory public immutable factory;
 
-    address public immutable xboo;
-    address private immutable boo;
-    address private immutable wftm;
+    mapping(IERC20 => bool) public isRewardToken;
+    IERC20[] public rewardTokens;
+
+    address public immutable asteroidBelt;
+    address private immutable plex;
+    address private immutable wglmr;
     uint public devCut = 0;  // in basis points aka parts per 10,000 so 5000 is 50%, cap of 50%, default is 0
     address public devAddr;
 
@@ -642,7 +646,7 @@ contract SpaceDustX is Ownable {
     bool public anyAuth = false;
 
     modifier onlyAuth() {
-        require(isAuth[msg.sender] || anyAuth, "BrewBoo: FORBIDDEN");
+        require(isAuth[msg.sender] || anyAuth, "SpaceDustX: FORBIDDEN");
         _;
     }
 
@@ -658,24 +662,48 @@ contract SpaceDustX is Ownable {
         address indexed token1,
         uint256 amount0,
         uint256 amount1,
-        uint256 amountBOO
+        uint256 amountPLEX
     );
 
     constructor(
         address _factory,
-        address _xboo,
-        address _boo,
-        address _wftm
+        address _asteroidBelt,
+        address _plex,
+        address _wglmr
     ) public {
         factory = IUniswapV2Factory(_factory);
-        xboo = _xboo;
-        boo = _boo;
-        wftm = _wftm;
+        asteroidBelt = _asteroidBelt;
+        plex = _plex;
+        wglmr = _wglmr;
         devAddr = msg.sender;
         isAuth[msg.sender] = true;
         authorized.push(msg.sender);
+        rewardTokens.push(IERC20(wglmr));
     }
     // Begin Owner functions
+
+    function addRewardToken(IERC20 _rewardToken) external onlyOwner {
+        uint256 length = rewardTokens.length;
+        for (uint256 i = 0; i < length; i++) {
+            require(rewardTokens[i] != _rewardToken, "already rewardToken");
+        }
+        rewardTokens.push(_rewardToken);
+        isRewardToken[_rewardToken] = true;
+    }
+
+        // be careful calling this: people can lose un-harvested rewards
+    function removeRewardToken(IERC20 _rewardToken) external onlyOwner {
+        uint256 length = rewardTokens.length;
+        for (uint256 i = 0; i < length; i++) {
+            if(rewardTokens[i] == _rewardToken) {
+                rewardTokens[i] = rewardTokens[length - 1];
+                rewardTokens.pop();
+                
+            }
+        }
+        isRewardToken[_rewardToken] = false;
+    }
+
     function addAuth(address _auth) external onlyOwner {
         isAuth[_auth] = true;
         authorized.push(_auth);
@@ -693,8 +721,8 @@ contract SpaceDustX is Ownable {
     function setBridge(address token, address bridge) external onlyOwner {
         // Checks
         require(
-            token != boo && token != wftm && token != bridge,
-            "BrewBoo: Invalid bridge"
+            token != plex && token != wglmr && token != bridge,
+            "SpaceDustX: Invalid bridge"
         );
 
         // Effects
@@ -720,21 +748,21 @@ contract SpaceDustX is Ownable {
     function bridgeFor(address token) public view returns (address bridge) {
         bridge = _bridges[token];
         if (bridge == address(0)) {
-            bridge = wftm;
+            bridge = wglmr;
         }
     }
 
     // C6: It's not a fool proof solution, but it prevents flash loans, so here it's ok to use tx.origin
     modifier onlyEOA() {
         // Try to make flash-loan exploit harder to do by only allowing externally owned addresses.
-        require(msg.sender == tx.origin, "BrewBoo: must use EOA");
+        require(msg.sender == tx.origin, "SpaceDustX: must use EOA");
         _;
     }
 
     // F1 - F10: OK
     // F3: _convert is separate to save gas by only checking the 'onlyEOA' modifier once in case of convertMultiple
-    // F6: There is an exploit to add lots of BOO to the xboo, run convert, then remove the BOO again.
-    //     As the size of the Booxboo has grown, this requires large amounts of funds and isn't super profitable anymore
+    // F6: There is an exploit to add lots of PLEX to the asteroidBelt, run convert, then remove the PLEX again.
+    //     As the size of the BooasteroidBelt has grown, this requires large amounts of funds and isn't super profitable anymore
     //     The onlyEOA modifier prevents this being done with a flash loan.
     // C1 - C24: OK
     function convert(address token0, address token1) external onlyEOA() onlyAuth() {
@@ -769,7 +797,7 @@ contract SpaceDustX is Ownable {
         else {
 
             IUniswapV2Pair pair = IUniswapV2Pair(factory.getPair(token0, token1));
-            require(address(pair) != address(0), "BrewBoo: Invalid pair");
+            require(address(pair) != address(0), "SpaceDustX: Invalid pair");
 
             IERC20(address(pair)).safeTransfer(
                 address(pair),
@@ -798,47 +826,49 @@ contract SpaceDustX is Ownable {
         );
     }
 
+    // todo: reward token loops
+
     // F1 - F10: OK
     // C1 - C24: OK
-    // All safeTransfer, _swap, _toBOO, _convertStep: X1 - X5: OK
+    // All safeTransfer, _swap, _toPLEX, _convertStep: X1 - X5: OK
     function _convertStep(
         address token0,
         address token1,
         uint256 amount0,
         uint256 amount1
-    ) internal returns (uint256 booOut) {
+    ) internal returns (uint256 plexOut) {
         // Interactions
         if (token0 == token1) {
             uint256 amount = amount0.add(amount1);
-            if (token0 == boo) {
-                IERC20(boo).safeTransfer(xboo, amount);
-                booOut = amount;
-            } else if (token0 == wftm) {
-                booOut = _toBOO(wftm, amount);
+            if (token0 == plex) {
+                IERC20(plex).safeTransfer(asteroidBelt, amount);
+                plexOut = amount;
+            } else if (token0 == wglmr) {
+                plexOut = _toPLEX(wglmr, amount);
             } else {
                 address bridge = bridgeFor(token0);
                 amount = _swap(token0, bridge, amount, address(this));
-                booOut = _convertStep(bridge, bridge, amount, 0);
+                plexOut = _convertStep(bridge, bridge, amount, 0);
             }
-        } else if (token0 == boo) {
-            // eg. BOO - ETH
-            IERC20(boo).safeTransfer(xboo, amount0);
-            booOut = _toBOO(token1, amount1).add(amount0);
-        } else if (token1 == boo) {
-            // eg. USDT - BOO
-            IERC20(boo).safeTransfer(xboo, amount1);
-            booOut = _toBOO(token0, amount0).add(amount1);
-        } else if (token0 == wftm) {
+        } else if (token0 == plex) {
+            // eg. PLEX - ETH
+            IERC20(plex).safeTransfer(asteroidBelt, amount0);
+            plexOut = _toPLEX(token1, amount1).add(amount0);
+        } else if (token1 == plex) {
+            // eg. USDT - PLEX
+            IERC20(plex).safeTransfer(asteroidBelt, amount1);
+            plexOut = _toPLEX(token0, amount0).add(amount1);
+        } else if (token0 == wglmr) {
             // eg. ETH - USDC
-            booOut = _toBOO(
-                wftm,
-                _swap(token1, wftm, amount1, address(this)).add(amount0)
+            plexOut = _toPLEX(
+                wglmr,
+                _swap(token1, wglmr, amount1, address(this)).add(amount0)
             );
-        } else if (token1 == wftm) {
+        } else if (token1 == wglmr) {
             // eg. USDT - ETH
-            booOut = _toBOO(
-                wftm,
-                _swap(token0, wftm, amount0, address(this)).add(amount1)
+            plexOut = _toPLEX(
+                wglmr,
+                _swap(token0, wglmr, amount0, address(this)).add(amount1)
             );
         } else {
             // eg. MIC - USDT
@@ -846,7 +876,7 @@ contract SpaceDustX is Ownable {
             address bridge1 = bridgeFor(token1);
             if (bridge0 == token1) {
                 // eg. MIC - USDT - and bridgeFor(MIC) = USDT
-                booOut = _convertStep(
+                plexOut = _convertStep(
                     bridge0,
                     token1,
                     _swap(token0, bridge0, amount0, address(this)),
@@ -854,14 +884,14 @@ contract SpaceDustX is Ownable {
                 );
             } else if (bridge1 == token0) {
                 // eg. WBTC - DSD - and bridgeFor(DSD) = WBTC
-                booOut = _convertStep(
+                plexOut = _convertStep(
                     token0,
                     bridge1,
                     amount0,
                     _swap(token1, bridge1, amount1, address(this))
                 );
             } else {
-                booOut = _convertStep(
+                plexOut = _convertStep(
                     bridge0,
                     bridge1, // eg. USDT - DSD - and bridgeFor(DSD) = WBTC
                     _swap(token0, bridge0, amount0, address(this)),
@@ -898,7 +928,7 @@ contract SpaceDustX is Ownable {
 
     // F1 - F10: OK
     // C1 - C24: OK
-    function _toBOO(address token, uint256 amountIn)
+    function _toPLEX(address token, uint256 amountIn)
         internal
         returns (uint256 amountOut)
     {   
@@ -908,7 +938,7 @@ contract SpaceDustX is Ownable {
             IERC20(token).safeTransfer(devAddr, amount);
             amount = amountIn.sub(amount);
         }
-        amountOut = _swap(token, boo, amount, xboo);
+        amountOut = _swap(token, plex, amount, asteroidBelt);
     }
 
     function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) internal pure returns (uint amountOut) {

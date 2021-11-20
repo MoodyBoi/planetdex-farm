@@ -1632,7 +1632,7 @@ contract AsteroidBelt is Ownable {
         uint256 delta;
         if (address(_rewardToken) != address(plex)) {
             if (_rewardToken.balanceOf(address(this)) > lastBalances[_rewardToken]) {
-                delta = _rewardToken.balanceOf(address(this)).sub(lastBalances[_rewardToken]);   
+                delta = _rewardToken.balanceOf(address(this)).sub(lastBalances[_rewardToken]);  
             }
             lastBalances[_rewardToken] = _rewardToken.balanceOf(address(this));
         } else {
@@ -1704,8 +1704,7 @@ contract AsteroidBelt is Ownable {
 
         uint256 length = rewardTokens.length;
         for (uint256 i = 0; i < length; i++) {
-            IERC20 rewardToken = rewardTokens[i];
-            user.rewardDebts[rewardToken] = 0;
+            user.rewardDebts[rewardTokens[i]] = 0;
         }
 
         safePlexTransfer(address(msg.sender), oldUserAmount);
