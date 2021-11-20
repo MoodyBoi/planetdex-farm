@@ -1573,8 +1573,6 @@ contract AsteroidBelt is Ownable {
     mapping(IERC20 => uint256) public lastBalances;
 
     uint256 public totalDeposited;
-
-    address public devaddr;
     
     // can probably make this more explicit when the token is done
     IERC20 public plex; 
@@ -1585,15 +1583,12 @@ contract AsteroidBelt is Ownable {
     event Withdraw(address indexed user, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 amount);
 
-    constructor(
-        IERC20 _plex,
-        address _devaddr
-    ) {
+    constructor(IERC20 _plex) {
         plex = _plex;
-        devaddr = _devaddr;
     }
 
     function addRewardToken(IERC20 _rewardToken) external onlyOwner {
+        massUpdate();
         uint256 length = rewardTokens.length;
         for (uint256 i = 0; i < length; i++) {
             require(rewardTokens[i] != _rewardToken, "already rewardToken");
@@ -1605,10 +1600,20 @@ contract AsteroidBelt is Ownable {
         UserInfo storage user = userInfo[_user];
         uint256 accTokenPerShare = accTokenPerShares[_rewardToken];
         uint256 lpSupply = totalDeposited;
-        if (_rewardToken.balanceOf(address(this)) > lastBalances[_rewardToken]) {
-            uint256 delta = _rewardToken.balanceOf(address(this)).sub(lastBalances[_rewardToken]);
-            accTokenPerShare = accTokenPerShare.add(delta.mul(1e12).div(lpSupply));            
-        } 
+
+
+        uint256 delta;
+        if (address(_rewardToken) != address(plex)) {
+            if (_rewardToken.balanceOf(address(this)) > lastBalances[_rewardToken]) {
+                delta = _rewardToken.balanceOf(address(this)).sub(lastBalances[_rewardToken]);   
+            }
+        } else {
+            if (_rewardToken.balanceOf(address(this)).sub(totalDeposited) > lastBalances[_rewardToken]) {
+                delta = _rewardToken.balanceOf(address(this)).sub(totalDeposited).sub(lastBalances[_rewardToken]);   
+            }
+        }
+        
+        accTokenPerShare = accTokenPerShares[_rewardToken].add(delta.mul(1e12).div(lpSupply));
         return user.amount.mul(accTokenPerShare).div(1e12).sub(user.rewardDebts[_rewardToken]);
     }
 
@@ -1716,11 +1721,5 @@ contract AsteroidBelt is Ownable {
         } else {
             plex.transfer(_to, _amount);
         }
-    }
-
-    // Update dev address by the previous dev.
-    function dev(address _devaddr) public {
-        require(msg.sender == devaddr, "dev: wut?");
-        devaddr = _devaddr;
     }
 }
