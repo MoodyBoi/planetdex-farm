@@ -637,7 +637,7 @@ contract SpaceDustX is Ownable {
     address public immutable asteroidBelt;
     address private immutable plex;
     address private immutable wglmr;
-    uint public devCut = 0;  // in basis points aka parts per 10,000 so 5000 is 50%, cap of 50%, default is 0
+    uint public devCut = 100;  // in basis points aka parts per 10,000 so 5000 is 50%, cap of 50%, default is 0
     address public devAddr;
 
     // set of addresses that can perform certain functions
@@ -830,7 +830,7 @@ contract SpaceDustX is Ownable {
 
     // F1 - F10: OK
     // C1 - C24: OK
-    // All safeTransfer, _swap, _toPLEX, _convertStep: X1 - X5: OK
+    // All safeTransfer, _swap, _toFIELD, _convertStep: X1 - X5: OK
     function _convertStep(
         address token0,
         address token1,
@@ -843,8 +843,8 @@ contract SpaceDustX is Ownable {
             if (token0 == plex) {
                 IERC20(plex).safeTransfer(asteroidBelt, amount);
                 plexOut = amount;
-            } else if (token0 == wglmr) {
-                plexOut = _toPLEX(wglmr, amount);
+            } else if (isRewardToken[token0]) {
+                plexOut = _toFIELD(token0, amount);
             } else {
                 address bridge = bridgeFor(token0);
                 amount = _swap(token0, bridge, amount, address(this));
@@ -853,23 +853,33 @@ contract SpaceDustX is Ownable {
         } else if (token0 == plex) {
             // eg. PLEX - ETH
             IERC20(plex).safeTransfer(asteroidBelt, amount0);
-            plexOut = _toPLEX(token1, amount1).add(amount0);
+            plexOut = _toFIELD(token1, amount1).add(amount0);
         } else if (token1 == plex) {
             // eg. USDT - PLEX
             IERC20(plex).safeTransfer(asteroidBelt, amount1);
-            plexOut = _toPLEX(token0, amount0).add(amount1);
-        } else if (token0 == wglmr) {
+            plexOut = _toFIELD(token0, amount0).add(amount1);
+        } else if (isRewardToken[token0]) {
             // eg. ETH - USDC
-            plexOut = _toPLEX(
-                wglmr,
-                _swap(token1, wglmr, amount1, address(this)).add(amount0)
-            );
-        } else if (token1 == wglmr) {
+            if (isRewardToken[token1]) {
+                plexOut = 0;
+                _toFIELD(token0, amount0);
+                _toFIELD(token1, amount1);
+            } else {
+                _toFIELD(
+                    token0,
+                    _swap(token1, token0, amount1, address(this)).add(amount0)
+                );
+            }
+            
+        } else if (!isRewardToken[token0]) {
             // eg. USDT - ETH
-            plexOut = _toPLEX(
-                wglmr,
-                _swap(token0, wglmr, amount0, address(this)).add(amount1)
-            );
+
+            if (isRewardToken[token1]) {
+                _toFIELD(
+                    token1,
+                    _swap(token0, token1, amount0, address(this)).add(amount1)
+                );
+            } 
         } else {
             // eg. MIC - USDT
             address bridge0 = bridgeFor(token0);
@@ -928,7 +938,7 @@ contract SpaceDustX is Ownable {
 
     // F1 - F10: OK
     // C1 - C24: OK
-    function _toPLEX(address token, uint256 amountIn)
+    function _toFIELD(address token, uint256 amountIn)
         internal
         returns (uint256 amountOut)
     {   
@@ -938,7 +948,13 @@ contract SpaceDustX is Ownable {
             IERC20(token).safeTransfer(devAddr, amount);
             amount = amountIn.sub(amount);
         }
-        amountOut = _swap(token, plex, amount, asteroidBelt);
+        if(isRewardToken[token]) {
+            IERC20(token).safeTransfer(asteroidBelt, amount);
+            amountOut = 0;
+        } else {
+            amountOut = _swap(token, plex, amount, asteroidBelt);
+        }
+        
     }
 
     function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) internal pure returns (uint amountOut) {
