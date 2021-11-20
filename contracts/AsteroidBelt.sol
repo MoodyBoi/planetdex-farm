@@ -1571,6 +1571,7 @@ contract AsteroidBelt is Ownable {
 
     mapping(IERC20 => uint256) public accTokenPerShares;
     mapping(IERC20 => uint256) public lastBalances;
+    mapping(IERC20 => uint256) public allTimeTotalAccrued;
 
     uint256 public totalDeposited;
     
@@ -1642,6 +1643,7 @@ contract AsteroidBelt is Ownable {
             lastBalances[_rewardToken] = _rewardToken.balanceOf(address(this)).sub(totalDeposited);
         }
         
+        allTimeTotalAccrued[_rewardToken].add(delta);
         accTokenPerShares[_rewardToken] = accTokenPerShares[_rewardToken].add(delta.mul(1e12).div(lpSupply));
     }
 
