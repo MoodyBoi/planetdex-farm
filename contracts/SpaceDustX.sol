@@ -622,7 +622,7 @@ interface IUniswapV2Factory {
 
 // SpaceDustX is MasterChief's left hand.
 // Sends reward tokens to the asteroid belt
-// Other tokens are swapped to plex and sent to the belt
+// Other tokens are swapped (mostly to wglmr) and sent to the belt
 
 // T1 - T4: OK
 contract SpaceDustX is Ownable {

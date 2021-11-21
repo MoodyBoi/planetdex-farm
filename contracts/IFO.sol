@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
-import "./SpookyToken.sol";
+import './PlanetaryExchangeToken.sol';
 
 contract SpookyIFO is Ownable {
     using SafeMath for uint256;
@@ -38,7 +34,7 @@ contract SpookyIFO is Ownable {
     }
 
     // such a spooky token!
-    SpookyToken public boo;
+    PlanetaryExchangeToken public boo;
 
     // boo tokens created per block.
     uint256 public booPerSecond;
@@ -59,7 +55,7 @@ contract SpookyIFO is Ownable {
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
 
     constructor(
-        SpookyToken _boo,
+        PlanetaryExchangeToken _boo,
         uint256 _booPerSecond,
         uint256 _startTime
     ) {
