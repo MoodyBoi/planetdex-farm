@@ -1,7 +1,3 @@
-/**
- *Submitted for verification at FtmScan.com on 2021-08-02
-*/
-
 // SPDX-License-Identifier: MIT
 
 // P1 - P3: OK
