@@ -873,7 +873,6 @@ contract SpaceDustX is Ownable {
             
         } else if (!isRewardToken[token0]) {
             // eg. USDT - ETH
-
             if (isRewardToken[token1]) {
                 _toFIELD(
                     token1,
@@ -924,7 +923,7 @@ contract SpaceDustX is Ownable {
         // X1 - X5: OK
         IUniswapV2Pair pair =
             IUniswapV2Pair(factory.getPair(fromToken, toToken));
-        require(address(pair) != address(0), "BrewBoo: Cannot convert");
+        require(address(pair) != address(0), "spaceDustX: Cannot convert");
 
         (uint256 reserve0, uint256 reserve1, ) = pair.getReserves();
         (uint reserveInput, uint reserveOutput) = fromToken == pair.token0() ? (reserve0, reserve1) : (reserve1, reserve0);
@@ -958,8 +957,8 @@ contract SpaceDustX is Ownable {
     }
 
     function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) internal pure returns (uint amountOut) {
-        require(amountIn > 0, 'BrewBoo: INSUFFICIENT_INPUT_AMOUNT');
-        require(reserveIn > 0 && reserveOut > 0, 'BrewBoo: INSUFFICIENT_LIQUIDITY');
+        require(amountIn > 0, 'spaceDustX: INSUFFICIENT_INPUT_AMOUNT');
+        require(reserveIn > 0 && reserveOut > 0, 'spaceDustX: INSUFFICIENT_LIQUIDITY');
         uint amountInWithFee = amountIn.mul(998);
         uint numerator = amountInWithFee.mul(reserveOut);
         uint denominator = reserveIn.mul(1000).add(amountInWithFee);
