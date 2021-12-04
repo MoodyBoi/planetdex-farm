@@ -1,7 +1,3 @@
-/**
- *Submitted for verification at FtmScan.com on 2021-04-25
-*/
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -18,15 +14,13 @@ contract AsteroidBelt is Ownable {
         mapping(IERC20 => uint256) rewardDebts;
     }
 
-    IERC20[] rewardTokens;
+    IERC20[] public rewardTokens;
 
     mapping(IERC20 => uint256) public accTokenPerShares;
     mapping(IERC20 => uint256) public lastBalances;
-    mapping(IERC20 => uint256) public allTimeTotalAccrued;
 
     uint256 public totalDeposited;
     
-    // can probably make this more explicit when the token is done
     PlanetaryExchangeToken public plex; 
 
     mapping(address => UserInfo) public userInfo;
@@ -51,8 +45,6 @@ contract AsteroidBelt is Ownable {
     function pendingTokens(IERC20 _rewardToken, address _user) external view returns (uint256) {
         UserInfo storage user = userInfo[_user];
         uint256 accTokenPerShare = accTokenPerShares[_rewardToken];
-        uint256 lpSupply = totalDeposited;
-
 
         uint256 delta;
         if (address(_rewardToken) != address(plex)) {
@@ -65,7 +57,7 @@ contract AsteroidBelt is Ownable {
             }
         }
         
-        accTokenPerShare = accTokenPerShares[_rewardToken].add(delta.mul(1e12).div(lpSupply));
+        accTokenPerShare = accTokenPerShares[_rewardToken].add(delta.mul(1e12).div(totalDeposited));
         return user.amount.mul(accTokenPerShare).div(1e12).sub(user.rewardDebts[_rewardToken]);
     }
 
@@ -77,8 +69,7 @@ contract AsteroidBelt is Ownable {
     }
 
     function updateRewards(IERC20 _rewardToken) public {
-        uint256 lpSupply = totalDeposited;
-        if (lpSupply == 0) {
+        if (totalDeposited == 0) {
             return;
         }
         uint256 delta;
@@ -94,8 +85,7 @@ contract AsteroidBelt is Ownable {
             lastBalances[_rewardToken] = _rewardToken.balanceOf(address(this)).sub(totalDeposited);
         }
         
-        allTimeTotalAccrued[_rewardToken].add(delta);
-        accTokenPerShares[_rewardToken] = accTokenPerShares[_rewardToken].add(delta.mul(1e12).div(lpSupply));
+        accTokenPerShares[_rewardToken] = accTokenPerShares[_rewardToken].add(delta.mul(1e12).div(totalDeposited));
     }
 
     function deposit(uint256 _amount) public {
@@ -109,9 +99,8 @@ contract AsteroidBelt is Ownable {
         uint256 length = rewardTokens.length;
         for (uint256 i = 0; i < length; i++) {
             IERC20 rewardToken = rewardTokens[i];
-            user.rewardDebts[rewardToken] = user.amount.mul(accTokenPerShares[rewardToken]).div(1e12);
-
             uint256 pending = user.amount.mul(accTokenPerShares[rewardToken]).div(1e12).sub(user.rewardDebts[rewardToken]);
+            user.rewardDebts[rewardToken] = user.amount.mul(accTokenPerShares[rewardToken]).div(1e12);
             if (pending > 0) {
                 lastBalances[rewardToken] = lastBalances[rewardToken].sub(pending);
                 rewardToken.safeTransfer(msg.sender, pending);
@@ -135,9 +124,8 @@ contract AsteroidBelt is Ownable {
         uint256 length = rewardTokens.length;
         for (uint256 i = 0; i < length; i++) {
             IERC20 rewardToken = rewardTokens[i];
-            user.rewardDebts[rewardToken] = user.amount.mul(accTokenPerShares[rewardToken]).div(1e12);
-
             uint256 pending = user.amount.mul(accTokenPerShares[rewardToken]).div(1e12).sub(user.rewardDebts[rewardToken]);
+            user.rewardDebts[rewardToken] = user.amount.mul(accTokenPerShares[rewardToken]).div(1e12);
             if (pending > 0) {
                 lastBalances[rewardToken] = lastBalances[rewardToken].sub(pending);
                 rewardToken.safeTransfer(msg.sender, pending);

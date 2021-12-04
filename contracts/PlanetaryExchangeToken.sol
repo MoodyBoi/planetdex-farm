@@ -1294,12 +1294,12 @@ abstract contract Ownable is Context {
 // todo: max supply stuff
 contract PlanetaryExchangeToken is ERC20Permit, Ownable {
 
-    constructor() ERC20("PlanetaryExchange", "PLEX") ERC20Permit("PlanetaryExchange")
+    constructor() ERC20("PlanetdeX", "PLEX") ERC20Permit("PlanetdeX")
     {
 
     }
 
-    uint256 constant private _maxTotalSupply = 13666000e18; // 13,666,000 max spooks
+    uint256 constant private _maxTotalSupply = 100000000e18; // 100,000,000 max plex
 
     function mint(address _to, uint256 _amount) public onlyOwner {
         require(totalSupply() + _amount <= _maxTotalSupply, "ERC20: minting more then MaxTotalSupply");

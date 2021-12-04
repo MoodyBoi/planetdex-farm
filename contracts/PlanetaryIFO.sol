@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import './PlanetaryExchangeToken.sol';
 
-contract SpookyIFO is Ownable {
+contract PlanetaryIFO is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -12,13 +12,13 @@ contract SpookyIFO is Ownable {
         uint256 amount;     // How many tokens the user has provided.
         uint256 rewardDebt; // Reward debt. See explanation below.
         //
-        // We do some fancy math here. Basically, any point in time, the amount of BOOs
+        // We do some fancy math here. Basically, any point in time, the amount of PLEXs
         // entitled to a user but is pending to be distributed is:
         //
-        //   pending reward = (user.amount * pool.accBOOPerShare) - user.rewardDebt
+        //   pending reward = (user.amount * pool.accPLEXPerShare) - user.rewardDebt
         //
         // Whenever a user deposits or withdraws tokens to a pool. Here's what happens:
-        //   1. The pool's `accBOOPerShare` (and `lastRewardBlock`) gets updated.
+        //   1. The pool's `accPLEXPerShare` (and `lastRewardBlock`) gets updated.
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
@@ -28,16 +28,16 @@ contract SpookyIFO is Ownable {
     struct PoolInfo {
         IERC20 Token;           // Address of token contract.
         uint256 stakingTokenTotalAmount;
-        uint256 allocPoint;       // How many allocation points assigned to this pool. BOOs to distribute per block.
-        uint256 lastRewardTime;  // Last block time that BOOs distribution occurs.
-        uint256 accBOOPerShare; // Accumulated BOOs per share, times 1e12. See below.
+        uint256 allocPoint;       // How many allocation points assigned to this pool. PLEXs to distribute per block.
+        uint256 lastRewardTime;  // Last block time that PLEXs distribution occurs.
+        uint256 accPLEXPerShare; // Accumulated PLEXs per share, times 1e12. See below.
     }
 
-    // such a spooky token!
-    PlanetaryExchangeToken public boo;
+    // planetdeX
+    PlanetaryExchangeToken public plex;
 
-    // boo tokens created per block.
-    uint256 public booPerSecond;
+    // plex tokens created per block.
+    uint256 public plexPerSecond;
 
     // Info of each pool.
     PoolInfo[] public poolInfo;
@@ -45,7 +45,7 @@ contract SpookyIFO is Ownable {
     mapping (uint256 => mapping (address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint = 0;
-    // The block time when boo mining starts.
+    // The block time when plex mining starts.
     uint256 public immutable startTime;
 
     uint256 public endTime;
@@ -55,12 +55,12 @@ contract SpookyIFO is Ownable {
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
 
     constructor(
-        PlanetaryExchangeToken _boo,
-        uint256 _booPerSecond,
+        PlanetaryExchangeToken _plex,
+        uint256 _plexPerSecond,
         uint256 _startTime
     ) {
-        boo = _boo;
-        booPerSecond = _booPerSecond;
+        plex = _plex;
+        plexPerSecond = _plexPerSecond;
         startTime = _startTime;
         endTime = _startTime + 13 weeks;
     }
@@ -74,13 +74,13 @@ contract SpookyIFO is Ownable {
     }
 
     // Good practice to update pools without messing up the contract
-    function setBooPerSecond(uint256 _booPerSecond) external onlyOwner {
+    function setPlexPerSecond(uint256 _plexPerSecond) external onlyOwner {
 
-        // This MUST be done or pool rewards will be calculated with new boo per second
+        // This MUST be done or pool rewards will be calculated with new plex per second
         // This could unfairly punish small pools that dont have frequent deposits/withdraws/harvests
         massUpdatePools(); 
 
-        booPerSecond = _booPerSecond;
+        plexPerSecond = _plexPerSecond;
     }
 
     function checkForDuplicate(IERC20 _Token) internal view {
@@ -104,11 +104,11 @@ contract SpookyIFO is Ownable {
             allocPoint: _allocPoint,
             stakingTokenTotalAmount: 0,
             lastRewardTime: lastRewardTime,
-            accBOOPerShare: 0
+            accPLEXPerShare: 0
         }));
     }
 
-    // Update the given pool's boo allocation point. Can only be called by the owner.
+    // Update the given pool's plex allocation point. Can only be called by the owner.
     function set(uint256 _pid, uint256 _allocPoint) external onlyOwner {
 
         massUpdatePools();
@@ -129,18 +129,18 @@ contract SpookyIFO is Ownable {
         return _to - _from;
     }
 
-    // View function to see pending BOOs on frontend.
-    function pendingBOO(uint256 _pid, address _user) external view returns (uint256) {
+    // View function to see pending PLEXs on frontend.
+    function pendingPLEX(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
-        uint256 accBOOPerShare = pool.accBOOPerShare;
+        uint256 accPLEXPerShare = pool.accPLEXPerShare;
 
         if (block.timestamp > pool.lastRewardTime && pool.stakingTokenTotalAmount != 0) {
             uint256 multiplier = getMultiplier(pool.lastRewardTime, block.timestamp);
-            uint256 booReward = multiplier.mul(booPerSecond).mul(pool.allocPoint).div(totalAllocPoint);
-            accBOOPerShare = accBOOPerShare.add(booReward.mul(1e12).div(pool.stakingTokenTotalAmount));
+            uint256 plexReward = multiplier.mul(plexPerSecond).mul(pool.allocPoint).div(totalAllocPoint);
+            accPLEXPerShare = accPLEXPerShare.add(plexReward.mul(1e12).div(pool.stakingTokenTotalAmount));
         }
-        return user.amount.mul(accBOOPerShare).div(1e12).sub(user.rewardDebt);
+        return user.amount.mul(accPLEXPerShare).div(1e12).sub(user.rewardDebt);
     }
 
     // Update reward variables for all pools. Be careful of gas spending!
@@ -163,13 +163,13 @@ contract SpookyIFO is Ownable {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardTime, block.timestamp);
-        uint256 booReward = multiplier.mul(booPerSecond).mul(pool.allocPoint).div(totalAllocPoint);
+        uint256 plexReward = multiplier.mul(plexPerSecond).mul(pool.allocPoint).div(totalAllocPoint);
 
-        pool.accBOOPerShare = pool.accBOOPerShare.add(booReward.mul(1e12).div(pool.stakingTokenTotalAmount));
+        pool.accPLEXPerShare = pool.accPLEXPerShare.add(plexReward.mul(1e12).div(pool.stakingTokenTotalAmount));
         pool.lastRewardTime = block.timestamp;
     }
 
-    // Deposit tokens to IFO for boo allocation.
+    // Deposit tokens to IFO for plex allocation.
     function deposit(uint256 _pid, uint256 _amount) public {
 
         PoolInfo storage pool = poolInfo[_pid];
@@ -177,14 +177,14 @@ contract SpookyIFO is Ownable {
 
         updatePool(_pid);
 
-        uint256 pending = user.amount.mul(pool.accBOOPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 pending = user.amount.mul(pool.accPLEXPerShare).div(1e12).sub(user.rewardDebt);
 
         user.amount = user.amount.add(_amount);
         pool.stakingTokenTotalAmount += _amount;
-        user.rewardDebt = user.amount.mul(pool.accBOOPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accPLEXPerShare).div(1e12);
 
         if(pending > 0) {
-            safeBOOTransfer(msg.sender, pending);
+            safePLEXTransfer(msg.sender, pending);
         }
         pool.Token.safeTransferFrom(address(msg.sender), address(this), _amount);
 
@@ -200,14 +200,14 @@ contract SpookyIFO is Ownable {
 
         updatePool(_pid);
 
-        uint256 pending = user.amount.mul(pool.accBOOPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 pending = user.amount.mul(pool.accPLEXPerShare).div(1e12).sub(user.rewardDebt);
 
         user.amount = user.amount.sub(_amount);
         pool.stakingTokenTotalAmount -= _amount;
-        user.rewardDebt = user.amount.mul(pool.accBOOPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accPLEXPerShare).div(1e12);
 
         if(pending > 0) {
-            safeBOOTransfer(msg.sender, pending);
+            safePLEXTransfer(msg.sender, pending);
         }
         pool.Token.safeTransfer(address(msg.sender), _amount);
         
@@ -229,13 +229,13 @@ contract SpookyIFO is Ownable {
 
     }
 
-    // Safe boo transfer function, just in case if rounding error causes pool to not have enough BOOs.
-    function safeBOOTransfer(address _to, uint256 _amount) internal {
-        uint256 booBal = boo.balanceOf(address(this));
-        if (_amount > booBal) {
-            boo.transfer(_to, booBal);
+    // Safe plex transfer function, just in case if rounding error causes pool to not have enough PLEXs.
+    function safePLEXTransfer(address _to, uint256 _amount) internal {
+        uint256 plexBal = plex.balanceOf(address(this));
+        if (_amount > plexBal) {
+            plex.transfer(_to, plexBal);
         } else {
-            boo.transfer(_to, _amount);
+            plex.transfer(_to, _amount);
         }
     }
 }

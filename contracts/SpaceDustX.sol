@@ -616,8 +616,7 @@ interface IUniswapV2Factory {
     function setFeeToSetter(address) external;
 }
 
-// SpaceDustX is MasterChief's left hand.
-// Sends reward tokens to the asteroid belt
+// SpaceDustX sends reward tokens to the asteroid belt
 // Other tokens are swapped (mostly to wglmr) and sent to the belt
 
 // T1 - T4: OK
@@ -627,13 +626,14 @@ contract SpaceDustX is Ownable {
 
     IUniswapV2Factory public immutable factory;
 
-    mapping(IERC20 => bool) public isRewardToken;
-    IERC20[] public rewardTokens;
+    mapping(address => bool) public isRewardToken;
+    address[] public rewardTokens;
 
     address public immutable asteroidBelt;
     address private immutable plex;
     address private immutable wglmr;
-    uint public devCut = 100;  // in basis points aka parts per 10,000 so 5000 is 50%, cap of 50%, default is 0
+
+    uint public devCut = 300;  // in basis points aka parts per 10,000 so 5000 is 50%, cap of 50%
     address public devAddr;
 
     // set of addresses that can perform certain functions
@@ -678,7 +678,7 @@ contract SpaceDustX is Ownable {
     }
     // Begin Owner functions
 
-    function addRewardToken(IERC20 _rewardToken) external onlyOwner {
+    function addRewardToken(address _rewardToken) external onlyOwner {
         uint256 length = rewardTokens.length;
         for (uint256 i = 0; i < length; i++) {
             require(rewardTokens[i] != _rewardToken, "already rewardToken");
@@ -688,7 +688,7 @@ contract SpaceDustX is Ownable {
     }
 
         // be careful calling this: people can lose un-harvested rewards
-    function removeRewardToken(IERC20 _rewardToken) external onlyOwner {
+    function removeRewardToken(address _rewardToken) external onlyOwner {
         uint256 length = rewardTokens.length;
         for (uint256 i = 0; i < length; i++) {
             if(rewardTokens[i] == _rewardToken) {
